@@ -3,8 +3,13 @@
 
 
 UsbManager::UsbManager()
+                        : m_udev{nullptr}
+                        , m_device{nullptr}
+                        , m_monitor{nullptr}
+                        , m_fd{0}
 {
   initUdev();
+  monitorUsbDeviceLoop();
 }
 
 UsbManager::~UsbManager()
@@ -97,8 +102,17 @@ void UsbManager::clearUdev()
 
 udev_device* UsbManager::getChildDevice(udev_device* parent, const char* subsystem)
 {
-  udev_device* child = nullptr;
-  udev_enumerate* enumerate = udev_enumerate_new(m_udev);
+  udev_device* child{nullptr};
+  udev_enumerate* enumerate{nullptr};
+  if(m_udev)
+  {
+      enumerate = udev_enumerate_new(m_udev);
+  }
+  else
+  {
+      createErrorMsg("Can't create udev!");
+      return nullptr;
+  }
 
   udev_enumerate_add_match_parent(enumerate, parent);
   udev_enumerate_add_match_subsystem(enumerate, subsystem);
@@ -120,14 +134,23 @@ udev_device* UsbManager::getChildDevice(udev_device* parent, const char* subsyst
 
 void UsbManager::enumerateUsbDevices()
 {
-    udev_enumerate* enumerate = udev_enumerate_new(m_udev);
+    udev_enumerate* enumerate{nullptr};
+    if(m_udev)
+    {
+        enumerate = udev_enumerate_new(m_udev);
+    }
+    else
+    {
+        createErrorMsg("Can't create udev!");
+        return;
+    }
 
     udev_enumerate_add_match_subsystem(enumerate, "scsi");
     udev_enumerate_add_match_property(enumerate, "DEVTYPE", "scsi_device");
     udev_enumerate_scan_devices(enumerate);
 
-    udev_list_entry *devices = udev_enumerate_get_list_entry(enumerate);
-    udev_list_entry *entry;
+    udev_list_entry *devices{udev_enumerate_get_list_entry(enumerate)};
+    udev_list_entry *entry{nullptr};
 
     udev_list_entry_foreach(entry, devices) {
         const char* path = udev_list_entry_get_name(entry);
@@ -136,12 +159,11 @@ void UsbManager::enumerateUsbDevices()
         udev_device* block = getChildDevice(scsi, "block");
         udev_device* scsi_disk = getChildDevice(scsi, "scsi_disk");
 
-        udev_device* usb = udev_device_get_parent_with_subsystem_devtype(scsi, "usb", "usb_device");
+        //udev_device* usb = udev_device_get_parent_with_subsystem_devtype(scsi, "usb", "usb_device");
 
         if (block) {
             udev_device_unref(block);
         }
-
         if (scsi_disk) {
             udev_device_unref(scsi_disk);
         }
@@ -154,5 +176,51 @@ void UsbManager::enumerateUsbDevices()
 
 void UsbManager::monitorUsbDeviceLoop()
 {
+    m_monitor = udev_monitor_new_from_netlink(m_udev, "udev");
+    udev_monitor_filter_add_match_subsystem_devtype(m_monitor, "usb", NULL);
+    udev_monitor_enable_receiving(m_monitor);
+    m_fd = udev_monitor_get_fd(m_monitor);
 
+    while (true)
+    {
+        fd_set fds;
+        struct timeval tv;
+        int ret;
+
+        FD_ZERO(&fds);
+        FD_SET(m_fd, &fds);
+        tv.tv_sec = 10;
+        tv.tv_usec = 0;
+
+        ret = select(m_fd+1, &fds, NULL, NULL, &tv);
+        if(ret < 0)
+            return;
+        if(!FD_ISSET(m_fd, &fds))
+            continue;
+
+        m_device = udev_monitor_receive_device(m_monitor);
+        if(!m_device)
+            continue;
+        if(!isUsbDevice(m_device))
+        {
+            udev_device_unref(m_device);
+            continue;
+        }
+        qInfo()<<udev_device_get_action(m_device);
+        udev_device_unref(m_device);
+        usleep(500*1000);
+    }
+}
+
+void UsbManager::createErrorMsg(const QString& errorMessageStr) const
+{
+    QMessageBox::critical(nullptr, "Error ocured !", errorMessageStr);
+}
+
+bool UsbManager::isUsbDevice(udev_device* device)
+{
+    QString actual{udev_device_get_devtype(device)};
+    QString needToBe("usb_device");
+
+    return actual == needToBe;
 }

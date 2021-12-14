@@ -6,6 +6,7 @@
 #include <QMenu>
 #include <QShortcut>
 #include <QMessageBox>
+#include <QThread>
 
 
 
@@ -23,7 +24,7 @@ public:
 
 private slots:
     void iconActivated(QSystemTrayIcon::ActivationReason);
-    void        showAboutDialog();
+    void showAboutDialog();
 
 private:
     Ui::TrayWindow *	ui;

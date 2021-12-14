@@ -1,5 +1,9 @@
 #include "traywindow.h"
 #include "ui_traywindow.h"
+#include "usbmanager.h"
+
+
+
 
 TrayWindow::TrayWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -13,6 +17,9 @@ TrayWindow::TrayWindow(QWidget *parent)
     QIcon appIcon = QIcon(":/icons/usb.png");
     createTrayIcon(appIcon);
     setTrayWindowProperties(appIcon);
+
+    QThread* thread = QThread::create([]{UsbManager u;});
+    thread->start();
 }
 
 TrayWindow::~TrayWindow()
@@ -52,7 +59,6 @@ void TrayWindow::iconActivated(QSystemTrayIcon::ActivationReason reason)
   switch (reason)
   {
     case QSystemTrayIcon::Trigger:
-      m_trayIcon->showMessage("Hello", "You clicked me!");
       break;
     default:
       break;

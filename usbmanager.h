@@ -19,6 +19,8 @@
 
 #include <QString>
 #include <QObject>
+#include <QMessageBox>
+#include <QDebug>
 
 
 class UsbManager
@@ -32,6 +34,9 @@ class UsbManager
     enum State		{READY, BUSY};
     QString			loglocation;
     udev*			m_udev;
+    udev_device*	m_device;
+    udev_monitor*	m_monitor;
+    int				m_fd;
 
     void initCommandLine();
     void initUdev();
@@ -40,6 +45,8 @@ class UsbManager
     void enumerateCurrentUsbDevices();
     void enumerateUsbDevices();
     void monitorUsbDeviceLoop();
+    void createErrorMsg(const QString&) const;
+    bool isUsbDevice(udev_device*);
 
   private slots:
     void onDeviceAdd();
