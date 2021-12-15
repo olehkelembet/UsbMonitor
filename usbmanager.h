@@ -34,7 +34,6 @@ class UsbManager
     enum State		{READY, BUSY};
     QString			loglocation;
     udev*			m_udev;
-    udev_device*	m_device;
     udev_monitor*	m_monitor;
     int				m_fd;
 
@@ -47,6 +46,9 @@ class UsbManager
     void monitorUsbDeviceLoop();
     void createErrorMsg(const QString&) const;
     bool isUsbDevice(udev_device*);
+    QString getDeviceAction(udev_device*) const;
+    bool isAction(udev_device*, const char*);
+    bool isDeviceInitialized(udev_device*);
 
   private slots:
     void onDeviceAdd();

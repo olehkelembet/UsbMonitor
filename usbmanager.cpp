@@ -4,7 +4,6 @@
 
 UsbManager::UsbManager()
                         : m_udev{nullptr}
-                        , m_device{nullptr}
                         , m_monitor{nullptr}
                         , m_fd{0}
 {
@@ -19,7 +18,8 @@ UsbManager::~UsbManager()
 
 void UsbManager::onDeviceAdd()
 {
-
+    qDebug() << "Device added";
+    emit deviceAdd();
 }
 
 void UsbManager::onDeviceRemove()
@@ -161,12 +161,11 @@ void UsbManager::enumerateUsbDevices()
 
         //udev_device* usb = udev_device_get_parent_with_subsystem_devtype(scsi, "usb", "usb_device");
 
-        if (block) {
+        if (block)
             udev_device_unref(block);
-        }
-        if (scsi_disk) {
+
+        if (scsi_disk)
             udev_device_unref(scsi_disk);
-        }
 
         udev_device_unref(scsi);
     }
@@ -198,16 +197,35 @@ void UsbManager::monitorUsbDeviceLoop()
         if(!FD_ISSET(m_fd, &fds))
             continue;
 
-        m_device = udev_monitor_receive_device(m_monitor);
-        if(!m_device)
+        udev_device* udevice = udev_monitor_receive_device(m_monitor);
+        if(!udevice)
             continue;
-        if(!isUsbDevice(m_device))
+        if(!isUsbDevice(udevice))
         {
-            udev_device_unref(m_device);
+            udev_device_unref(udevice);
             continue;
         }
-        qInfo()<<udev_device_get_action(m_device);
-        udev_device_unref(m_device);
+        else
+        {
+            if(isAction(udevice, "bind") && isDeviceInitialized(udevice))
+            {
+                qInfo()<<"New device added.";
+                emit deviceAdd();
+            }
+            else if(isAction(udevice, "unbind") && isDeviceInitialized(udevice))
+            {
+                qInfo()<<"Device removed.";
+                emit deviceRemove();
+            }
+            else if(isAction(udevice, "add") && isDeviceInitialized(udevice))
+                continue;
+            else if(isAction(udevice, "remove") && isDeviceInitialized(udevice))
+                continue;
+            else
+                qInfo()<<"Gone wrong.";
+
+            udev_device_unref(udevice);
+        }
         usleep(500*1000);
     }
 }
@@ -223,4 +241,19 @@ bool UsbManager::isUsbDevice(udev_device* device)
     QString needToBe("usb_device");
 
     return actual == needToBe;
+}
+
+QString UsbManager::getDeviceAction(udev_device* device) const
+{
+    return QString(udev_device_get_action(device));
+}
+
+bool UsbManager::isAction(udev_device* device, const char* action)
+{
+    return getDeviceAction(device) == action;
+}
+
+bool UsbManager::isDeviceInitialized(udev_device* device)
+{
+    return udev_device_get_is_initialized(device);
 }
