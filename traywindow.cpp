@@ -18,8 +18,8 @@ TrayWindow::TrayWindow(QWidget *parent)
     createTrayIcon(appIcon);
     setTrayWindowProperties(appIcon);
 
-    QThread* thread = QThread::create([]{UsbManager u;});
-    thread->start();
+    /*QThread* thread = QThread::create([]{UsbManager u;});
+    thread->start();*/
 }
 
 TrayWindow::~TrayWindow()
@@ -43,7 +43,8 @@ QMenu* TrayWindow::createTrayMenu()
 
     QAction* quitAction = new QAction("&Quit", this);
     quitAction->setShortcut(Qt::Key_Q);
-    connect(quitAction, &QAction::triggered, qApp, &QCoreApplication::quit);
+    //connect(quitAction, &QAction::triggered, qApp, &QCoreApplication::quit);
+    connect(quitAction, &QAction::triggered, qApp, [&] {mediator->notify(this, APP_QUIT); QCoreApplication::quit();});
 
     QMenu* menu = new QMenu(this);
     menu->addAction(showAction);

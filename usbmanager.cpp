@@ -8,14 +8,17 @@ UsbManager::UsbManager()
                         , m_fd{0}
 {
   initUdev();
-  monitorUsbDeviceLoop();
+  //monitorUsbDeviceLoop();
+  //mediator->notify(this, APP_START);
+  //startMonitorLoop();
 }
 
 UsbManager::~UsbManager()
 {
   clearUdev();
+  //stopMonitorLoop();
 }
-
+/*
 void UsbManager::onDeviceAdd()
 {
     qDebug() << "Device added";
@@ -50,10 +53,24 @@ void UsbManager::onLogging()
 {
 
 }
-
-void UsbManager::deviceAdd()
+*/
+void UsbManager::deviceAdd(udev_device* udevice)
 {
+    const char* devnode = udev_device_get_devnode(udevice);
 
+    if(!isMounted(udevice))
+    {
+        QString mpoint;
+        createMountPoint(udevice, mpoint);
+        if(mpoint.isEmpty())
+        {
+            qCritical("Failed to create mount point for %s!", qUtf8Printable(devnode));
+        }
+        else
+        {
+            mountDevice(udevice, mpoint);
+        }
+    }
 }
 
 void UsbManager::deviceRemove()
@@ -82,6 +99,8 @@ void UsbManager::initUdev()
   {
     m_udev = udev_new();
   }
+
+  //connect(this, &deviceAdd, this, &onDeviceAdd);
 }
 
 void UsbManager::initCommandLine()
@@ -97,13 +116,16 @@ void UsbManager::enumerateCurrentUsbDevices()
 void UsbManager::clearUdev()
 {
   if(m_udev)
+  {
     udev_unref(m_udev);
+  }
 }
 
 udev_device* UsbManager::getChildDevice(udev_device* parent, const char* subsystem)
 {
   udev_device* child{nullptr};
   udev_enumerate* enumerate{nullptr};
+
   if(m_udev)
   {
       enumerate = udev_enumerate_new(m_udev);
@@ -135,6 +157,7 @@ udev_device* UsbManager::getChildDevice(udev_device* parent, const char* subsyst
 void UsbManager::enumerateUsbDevices()
 {
     udev_enumerate* enumerate{nullptr};
+
     if(m_udev)
     {
         enumerate = udev_enumerate_new(m_udev);
@@ -180,7 +203,7 @@ void UsbManager::monitorUsbDeviceLoop()
     udev_monitor_enable_receiving(m_monitor);
     m_fd = udev_monitor_get_fd(m_monitor);
 
-    while (true)
+    while (!this->m_done.load())
     {
         fd_set fds;
         struct timeval tv;
@@ -210,7 +233,7 @@ void UsbManager::monitorUsbDeviceLoop()
             if(isAction(udevice, "bind") && isDeviceInitialized(udevice))
             {
                 qInfo()<<"New device added.";
-                emit deviceAdd();
+                emit deviceAdd(udevice);
             }
             else if(isAction(udevice, "unbind") && isDeviceInitialized(udevice))
             {
@@ -256,4 +279,15 @@ bool UsbManager::isAction(udev_device* device, const char* action)
 bool UsbManager::isDeviceInitialized(udev_device* device)
 {
     return udev_device_get_is_initialized(device);
+}
+
+void UsbManager::startMonitorLoop()
+{
+    usbMonitoringLoop = std::thread([this] { monitorUsbDeviceLoop(); });
+}
+
+void UsbManager::stopMonitorLoop()
+{
+    this->m_done.store(true);
+    usbMonitoringLoop.join();
 }

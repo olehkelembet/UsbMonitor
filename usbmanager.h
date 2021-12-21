@@ -16,26 +16,38 @@
 #include <sys/utsname.h>
 #include <libudev.h>
 #include <getopt.h>
+#include <thread>
+#include <atomic>
 
 #include <QString>
 #include <QObject>
 #include <QMessageBox>
 #include <QDebug>
 
+#include "component.h"
+#include "mediator.h"
 
-class UsbManager
+class UsbManager: public Component/*, public QObject*/
 {
+/*    Q_OBJECT
+
+*/
   public:
     UsbManager();
     ~UsbManager();
+    void startMonitorLoop();
+    void stopMonitorLoop();
 
   private:
-    enum ErrorCode	{NO_ERROR, UNKNOWN};
-    enum State		{READY, BUSY};
-    QString			loglocation;
-    udev*			m_udev;
-    udev_monitor*	m_monitor;
-    int				m_fd;
+    enum ErrorCode		{NO_ERROR, UNKNOWN};
+    enum State			{READY, BUSY};
+    QString				m_mountPoint;
+    QString				m_loglocation;
+    udev*				m_udev;
+    udev_monitor*		m_monitor;
+    int					m_fd;
+    std::thread			usbMonitoringLoop;
+    std::atomic_bool	m_done{};
 
     void initCommandLine();
     void initUdev();
@@ -50,7 +62,7 @@ class UsbManager
     bool isAction(udev_device*, const char*);
     bool isDeviceInitialized(udev_device*);
 
-  private slots:
+/*  private slots:
     void onDeviceAdd();
     void onDeviceRemove();
     void onDeviceMount();
@@ -58,13 +70,14 @@ class UsbManager
     void onDeviceRemount();
     void onSetMountLocation();
     void onLogging();
-
+*/
   signals:
-    void deviceAdd();
+    void deviceAdd(udev_device*);
     void deviceRemove();
     void deviceMount();
     void deviceUnmount();
     void deviceRemount();
+
 };
 
 

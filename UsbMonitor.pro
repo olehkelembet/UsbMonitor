@@ -10,12 +10,16 @@ LIBS += -ludev
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    component.cpp \
     main.cpp \
+    mediator.cpp \
     notifier.cpp \
     traywindow.cpp \
     usbmanager.cpp
 
 HEADERS += \
+    component.h \
+    mediator.h \
     notifier.h \
     traywindow.h \
     usbmanager.h

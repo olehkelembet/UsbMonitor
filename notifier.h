@@ -1,11 +1,18 @@
 #ifndef NOTIFIER_H
 #define NOTIFIER_H
 
-#include <libnotify/notify.h>
+#include "component.h"
+#include <QtDebug>
 
-class UsbNotifier
+
+class UsbNotifier: public Component
 {
+public:
+    UsbNotifier();
+    ~UsbNotifier();
 
+private:
+    void eventOccure();
 };
 
 #endif //NOTIFIER_H
